@@ -1,0 +1,71 @@
+1. Which Film Category is the most and least preferred by Families ?
+
+/*The subquery is used to join all the tables which are required
+to return the categories of movies
+ (Animation, Children, Classics, Comedy, Family and Music).*/
+WITH sub1 AS
+(SELECT ct.name AS category_name
+FROM film_category fc
+JOIN category ct
+ON fc.category_id = ct.category_id
+JOIN film fm
+ON fm.film_id = fc.film_id
+JOIN inventory ivt
+ON fm.film_id = ivt.film_id
+JOIN rental rt
+ON ivt.inventory_id = rt.inventory_id
+WHERE ct.name IN('Animation','Children','Classics','Comedy','Family','Music'))
+
+SELECT category_name,COUNT(*) AS rental_count
+FROM sub1
+GROUP BY 1
+ORDER BY 1;
+
+
+2. Compare the Performance of two stores in terms of Rental Orders
+
+/*This subquery joins all the tables, then with the help of DATE_PART we extract the
+ months and years of all the purchases*/
+WITH sub1 AS(SELECT DATE_PART('month',rt.rental_date) AS rental_month,
+       DATE_PART('year',rt.rental_date) AS rental_year,
+       sf.store_id AS store_id
+FROM rental rt
+JOIN staff sf
+ON rt.staff_id = sf.staff_id)
+/*This query returns all the values fetched from the subquery, then we
+ use COUNT function to count all the rentals and then by using GROUP BY we divide the 
+  data - monthly and yearly*/
+SELECT rental_month,
+       rental_year,
+       store_id,
+       COUNT(*) AS rental_count
+FROM sub1
+GROUP BY 1,2,3
+ORDER BY 4 DESC;
+
+
+3. Who were the top 10 Paying Customers in the year 2007 ?
+
+/*This query returns the top 10 customer's who have made the highest payments*/
+
+SELECT DATE_TRUNC('month',pt.payment_date) AS payment_mon,
+       ct.first_name||' '||ct.last_name AS full_name,
+       COUNT(*) AS paycount_permonth,
+       SUM(pt.amount)
+FROM customer ct
+JOIN payment pt
+ON ct.customer_id = pt.customer_id
+WHERE pt.payment_date BETWEEN '2007-01-01' AND '2007-12-31'
+GROUP BY 1,2
+ORDER BY 4 DESC
+LIMIT 10;
+
+4. Which store has gained the highest revenue ?
+
+SELECT pt.amount,
+       stf.store_id,             
+       DATE_TRUNC('month',pt.payment_date) AS payment_month,
+       SUM(pt.amount) OVER (PARTITION BY stf.store_id,DATE_TRUNC('month',pt.payment_date) ORDER BY pt.payment_date) AS running_total_revenue
+FROM payment pt
+JOIN staff stf
+ON stf.staff_id = pt.staff_id;
